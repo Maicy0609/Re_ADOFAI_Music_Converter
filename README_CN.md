@@ -112,7 +112,7 @@ src/
 
 ## 致谢
 
-- 原版 Python 开发者：[Luxus io](https://github.com/Luxusio/ADOFAI-Midi-Converter)
+- 原版 Java 开发者：[Luxus io](https://github.com/Luxusio/ADOFAI-Midi-Converter)
 - [pyadofai](https://github.com/TonyLimps/pyadofai) - angleData 计算参考
 - [apofai](https://github.com/sky-sama/apofai_main_console) - 音频节拍检测参考
 
