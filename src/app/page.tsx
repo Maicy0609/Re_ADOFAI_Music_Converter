@@ -381,15 +381,45 @@ export default function Home() {
   ]);
 
   // 下载结果
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!resultJson || !resultFileName) return;
 
-    // 使用 application/octet-stream 避免浏览器自动添加 .json 后缀
-    const blob = new Blob([resultJson], { type: "application/octet-stream" });
+    // 确保文件名以 .adofai 结尾
+    const finalFileName = resultFileName.endsWith('.adofai') 
+      ? resultFileName 
+      : `${resultFileName}.adofai`;
+
+    // 尝试使用 File System Access API（如果支持）
+    if ('showSaveFilePicker' in window) {
+      try {
+        const handle = await (window as Window & { showSaveFilePicker: (options: unknown) => Promise<FileSystemFileHandle> }).showSaveFilePicker({
+          suggestedName: finalFileName,
+          types: [
+            {
+              description: 'ADOFAI Level File',
+              accept: { 'application/json': ['.adofai'] },
+            },
+          ],
+          defaultExtension: 'adofai',
+        });
+        const writable = await handle.createWritable();
+        await writable.write(resultJson);
+        await writable.close();
+        return;
+      } catch (err) {
+        // 用户取消或出错，回退到传统下载方式
+        if ((err as Error).name === 'AbortError') return;
+        console.warn('File System Access API failed, falling back to download:', err);
+      }
+    }
+
+    // 传统下载方式
+    const blob = new Blob([resultJson], { type: "application/octet-stream;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = resultFileName;
+    a.download = finalFileName;
+    a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
