@@ -1,7 +1,7 @@
 {
   "app": {
     "title": "ADOFAI Music Converter",
-    "version": "Web Version v1.0.1",
+    "version": "Web Version v1.1.0",
     "subtitle": "Convert MIDI or Audio to ADOFAI Level Files"
   },
   "nav": {
@@ -26,7 +26,9 @@
     "angle": "angleData Mode",
     "angleDesc": "Pure angle control with fixed base BPM",
     "zipper": "Zipper Angle Mode",
-    "zipperDesc": "Fixed angle with dynamic BPM (angleData + SetSpeed)"
+    "zipperDesc": "Fixed angle with dynamic BPM (angleData + SetSpeed)",
+    "fullsample": "Full Sample Mode",
+    "fullsampleDesc": "Straight track, plays audio via hitsounds (WAV only)"
   },
   "params": {
     "title": "Parameters",
@@ -49,8 +51,17 @@
     "audioMode": "Sampling Mode",
     "peakSampling": "Peak Sampling",
     "peakSamplingDesc": "Only collect peak points (higher than neighbors)",
-    "fullSampling": "Full Sample Sampling",
-    "fullSamplingDesc": "Collect every sample point (generates massive tiles!)"
+    "fullSampling": "Full Sample Mode",
+    "fullSamplingDesc": "Straight track with hitsound audio playback",
+    "pseudoSampleRate": "Pseudo Sample Rate",
+    "pseudoSampleRateDesc": "Determines audio quality and level density",
+    "pseudoSampleRateExample": "Examples: 8000 (default), 4000, 16000",
+    "pseudoSampleRateRange": "Valid range: 1 - 48000 Hz",
+    "volumePrecision": "Volume Precision",
+    "integerVolume": "Integer (0-100)",
+    "integerVolumeDesc": "Better compatibility",
+    "floatVolume": "Float (0.0-100.0)",
+    "floatVolumeDesc": "More precise volume control"
   },
   "convert": {
     "title": "Convert",
@@ -63,13 +74,20 @@
     "analyzing": "Analyzing file...",
     "parsingMidi": "Parsing MIDI melody...",
     "detectingBeats": "Detecting beats...",
+    "resamplingAudio": "Loading and resampling audio...",
+    "calculatingVolumes": "Calculating volume sequence...",
     "generatingLevel": "Generating ADOFAI level...",
     "melodyFound": "Found {count} melody events",
     "beatsFound": "Detected {count} beats",
+    "samplesResampled": "Resampling complete, {count} samples",
     "tilesGenerated": "Level contains {count} tiles",
     "estimatedBpm": "Estimated BPM: {bpm}",
     "medianBpm": "Using median BPM: {bpm}",
-    "magicNumber": "Magic number: 180/{angle} = {magic}"
+    "magicNumber": "Magic number: 180/{angle} = {magic}",
+    "levelBpm": "Level BPM: {bpm} (sample rate × 60)",
+    "estimatedTiles": "Estimated tiles: {count}",
+    "volumeRange": "Volume range: {min} - {max}",
+    "progress": "Progress: {percent}%"
   },
   "stats": {
     "title": "Statistics",
@@ -88,7 +106,9 @@
     "angleZero": "Angle cannot be 0° (no movement)",
     "angleExceed": "Angle cannot exceed 180°",
     "bpmPositive": "BPM must be greater than 0",
-    "processingFailed": "Processing failed"
+    "processingFailed": "Processing failed",
+    "sampleRateInvalid": "Sample rate must be between 1 and 48000 Hz",
+    "audioLoadFailed": "Failed to load audio file"
   },
   "footer": {
     "credits": "Based on Python version by Luxus io",

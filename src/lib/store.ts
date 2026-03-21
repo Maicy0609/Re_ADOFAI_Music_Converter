@@ -14,6 +14,8 @@ interface ConvertStats {
   sampleRate?: number;
   trackCount?: number;
   beatCount?: number;
+  volumeMin?: number;
+  volumeMax?: number;
 }
 
 interface ConverterState {
@@ -26,7 +28,7 @@ interface ConverterState {
   inputSource: InputSource;
 
   // 转换模式
-  convertMode: "angle" | "zipper";
+  convertMode: "angle" | "zipper" | "fullsample";
 
   // MIDI 参数
   trackInfo: TrackInfo[];
@@ -36,6 +38,10 @@ interface ConverterState {
   audioSampleMode: AudioSampleMode;
   heightMin: number;
   heightMax: number;
+
+  // 全采音参数
+  pseudoSampleRate: number;
+  useFloatVolume: boolean;
 
   // 通用参数
   baseBpm: number | null;
@@ -55,7 +61,7 @@ interface ConverterState {
   // Actions
   setFile: (file: File | null) => void;
   setInputSource: (source: InputSource) => void;
-  setConvertMode: (mode: "angle" | "zipper") => void;
+  setConvertMode: (mode: "angle" | "zipper" | "fullsample") => void;
   setTrackInfo: (tracks: TrackInfo[]) => void;
   toggleTrack: (trackId: number) => void;
   setOctaveOffset: (offset: number) => void;
@@ -64,6 +70,8 @@ interface ConverterState {
   setHeightMax: (value: number) => void;
   setBaseBpm: (bpm: number | null) => void;
   setCustomAngle: (angle: number) => void;
+  setPseudoSampleRate: (rate: number) => void;
+  setUseFloatVolume: (useFloat: boolean) => void;
   setProcessing: (isProcessing: boolean, step?: string, progress?: number) => void;
   setResult: (json: string | null, fileName: string | null, stats: ConvertStats | null) => void;
   setError: (error: string | null) => void;
@@ -75,12 +83,14 @@ const initialState = {
   fileName: "",
   fileType: null as "midi" | "audio" | null,
   inputSource: "midi" as InputSource,
-  convertMode: "angle" as "angle" | "zipper",
+  convertMode: "angle" as "angle" | "zipper" | "fullsample",
   trackInfo: [] as TrackInfo[],
   octaveOffset: -4,
   audioSampleMode: "peak" as AudioSampleMode,
   heightMin: 0,
   heightMax: 32767,
+  pseudoSampleRate: 8000,
+  useFloatVolume: false,
   baseBpm: null as number | null,
   customAngle: 15,
   isProcessing: false,
@@ -136,6 +146,10 @@ export const useConverterStore = create<ConverterState>((set) => ({
   setBaseBpm: (baseBpm) => set({ baseBpm }),
 
   setCustomAngle: (customAngle) => set({ customAngle }),
+
+  setPseudoSampleRate: (pseudoSampleRate) => set({ pseudoSampleRate }),
+
+  setUseFloatVolume: (useFloatVolume) => set({ useFloatVolume }),
 
   setProcessing: (isProcessing, step = "", progress = 0) =>
     set({ isProcessing, processingStep: step, progress }),

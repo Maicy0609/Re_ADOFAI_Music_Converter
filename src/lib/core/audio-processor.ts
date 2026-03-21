@@ -1,6 +1,9 @@
 /**
  * Audio Processor - 完全等价移植自 Python 版本
  * 处理 WAV 音频文件，提取能量信号
+ * 
+ * 重要：所有 Web Audio API 必须在客户端组件中调用
+ * 使用 "use client" 标记，在 useEffect 或用户交互事件中执行
  */
 
 export interface AudioData {
@@ -139,5 +142,209 @@ export class AudioProcessor {
       timeAxis[i] = i / this.sampleRate;
     }
     return timeAxis;
+  }
+
+  /**
+   * 获取原始采样数据
+   */
+  getSamples(): Float64Array | null {
+    return this.samples;
+  }
+}
+
+/**
+ * 使用 OfflineAudioContext 进行高质量重采样
+ * 完全等价移植自 Python 版本的 scipy.signal.resample_poly
+ * 
+ * @param audioData - 原始音频数据
+ * @param originalSampleRate - 原始采样率
+ * @param targetSampleRate - 目标采样率
+ * @param onProgress - 进度回调函数
+ * @returns 重采样后的音频数据
+ */
+export async function resampleAudio(
+  audioData: Float64Array,
+  originalSampleRate: number,
+  targetSampleRate: number,
+  onProgress?: (progress: number) => void
+): Promise<Float64Array> {
+  // 验证采样率
+  if (targetSampleRate <= 0 || targetSampleRate > 48000) {
+    throw new Error(`Invalid target sample rate: ${targetSampleRate}`);
+  }
+
+  if (originalSampleRate === targetSampleRate) {
+    return audioData;
+  }
+
+  // 计算目标采样数
+  const duration = audioData.length / originalSampleRate;
+  const targetLength = Math.ceil(duration * targetSampleRate);
+
+  // 创建 OfflineAudioContext
+  const offlineContext = new OfflineAudioContext(1, targetLength, targetSampleRate);
+
+  // 创建音频缓冲区
+  const audioBuffer = offlineContext.createBuffer(1, audioData.length, originalSampleRate);
+  const channelData = audioBuffer.getChannelData(0);
+  
+  // 复制数据到缓冲区
+  for (let i = 0; i < audioData.length; i++) {
+    channelData[i] = audioData[i];
+  }
+
+  // 创建音频源
+  const source = offlineContext.createBufferSource();
+  source.buffer = audioBuffer;
+  source.connect(offlineContext.destination);
+  source.start(0);
+
+  // 渲染音频
+  onProgress?.(10);
+  const renderedBuffer = await offlineContext.startRendering();
+  onProgress?.(100);
+
+  // 提取重采样后的数据
+  const resampledData = renderedBuffer.getChannelData(0);
+  
+  return new Float64Array(resampledData);
+}
+
+/**
+ * 计算音量序列
+ * 完全等价移植自 Python 版本的 _calculate_volumes
+ * 
+ * @param audioData - 重采样后的音频数据
+ * @param useFloatVolume - 是否使用浮点数音量
+ * @returns 音量列表（0-100）
+ */
+export function calculateVolumes(
+  audioData: Float64Array,
+  useFloatVolume: boolean = false
+): number[] {
+  // 取绝对值获取幅度
+  const amplitudes = new Float64Array(audioData.length);
+  for (let i = 0; i < audioData.length; i++) {
+    amplitudes[i] = Math.abs(audioData[i]);
+  }
+
+  // 归一化到 0-1
+  let maxAmplitude = 0;
+  for (let i = 0; i < amplitudes.length; i++) {
+    if (amplitudes[i] > maxAmplitude) {
+      maxAmplitude = amplitudes[i];
+    }
+  }
+
+  const normalized = new Float64Array(amplitudes.length);
+  if (maxAmplitude > 0) {
+    for (let i = 0; i < amplitudes.length; i++) {
+      normalized[i] = amplitudes[i] / maxAmplitude;
+    }
+  }
+
+  // 映射到 0-100
+  const volumes: number[] = [];
+  for (let i = 0; i < normalized.length; i++) {
+    if (useFloatVolume) {
+      volumes.push(normalized[i] * 100.0);
+    } else {
+      volumes.push(Math.round(normalized[i] * 100.0));
+    }
+  }
+
+  return volumes;
+}
+
+/**
+ * 全采音模式处理器
+ * 封装完整的全采音处理流程
+ */
+export class FullSampleProcessor {
+  private audioData: Float64Array | null = null;
+  private originalSampleRate: number = 0;
+  private resampledData: Float64Array | null = null;
+  private volumes: number[] = [];
+
+  /**
+   * 加载并处理音频文件
+   */
+  async loadAndProcess(
+    file: File,
+    pseudoSampleRate: number,
+    useFloatVolume: boolean = false,
+    onProgress?: (step: string, progress: number) => void
+  ): Promise<boolean> {
+    try {
+      // 步骤1: 加载音频
+      onProgress?.("loading", 0);
+      const processor = new AudioProcessor();
+      const loaded = await processor.load(file);
+      
+      if (!loaded) {
+        throw new Error("Failed to load audio file");
+      }
+
+      this.audioData = processor.getSamples();
+      this.originalSampleRate = processor.getSampleRate();
+
+      if (!this.audioData) {
+        throw new Error("No audio data");
+      }
+
+      onProgress?.("loading", 100);
+
+      // 步骤2: 重采样
+      onProgress?.("resampling", 0);
+      this.resampledData = await resampleAudio(
+        this.audioData,
+        this.originalSampleRate,
+        pseudoSampleRate,
+        (p) => onProgress?.("resampling", p)
+      );
+
+      // 步骤3: 计算音量
+      onProgress?.("calculating", 0);
+      this.volumes = calculateVolumes(this.resampledData, useFloatVolume);
+      onProgress?.("calculating", 100);
+
+      return true;
+    } catch (error) {
+      console.error("Full sample processing failed:", error);
+      return false;
+    }
+  }
+
+  /**
+   * 获取音量序列
+   */
+  getVolumes(): number[] {
+    return this.volumes;
+  }
+
+  /**
+   * 获取采样点数量
+   */
+  getSampleCount(): number {
+    return this.volumes.length;
+  }
+
+  /**
+   * 获取音量范围
+   */
+  getVolumeRange(): { min: number; max: number } {
+    if (this.volumes.length === 0) {
+      return { min: 0, max: 0 };
+    }
+    
+    let min = this.volumes[0];
+    let max = this.volumes[0];
+    
+    for (const v of this.volumes) {
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    
+    return { min, max };
   }
 }

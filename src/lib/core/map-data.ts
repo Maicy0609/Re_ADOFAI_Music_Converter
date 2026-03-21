@@ -3,7 +3,7 @@
  * 生成 ADOFAI 谱面数据
  */
 
-import { EventType, MapSetting, TileData, Action, SetSpeedAction, TwirlAction, PauseAction } from "./types";
+import { EventType, MapSetting, TileData, Action, SetSpeedAction, TwirlAction, PauseAction, SetHitsoundAction } from "./types";
 import { median } from "./beat-detector";
 
 /**
@@ -140,6 +140,17 @@ function savePause(sb: string[], floor: number, action: PauseAction): void {
 }
 
 /**
+ * 保存 SetHitsound 动作
+ */
+function saveSetHitsound(sb: string[], floor: number, action: SetHitsoundAction): void {
+  sb.push(`\t\t{ "floor": ${floor}, "eventType": "${EventType.SET_HITSOUND}"`);
+  sb.push(`, "gameSound": "${action.gameSound}"`);
+  sb.push(`, "hitsound": "${action.hitsound}"`);
+  sb.push(`, "hitsoundVolume": ${formatDouble(action.hitsoundVolume)}`);
+  sb.push(" },\n");
+}
+
+/**
  * 保存瓷砖事件
  */
 function saveTileEvents(sb: string[], tileData: TileData): void {
@@ -179,6 +190,8 @@ function saveTileEvents(sb: string[], tileData: TileData): void {
         saveTwirl(sb, tileData.floor);
       } else if (eventType === EventType.PAUSE) {
         savePause(sb, tileData.floor, action as PauseAction);
+      } else if (eventType === EventType.SET_HITSOUND) {
+        saveSetHitsound(sb, tileData.floor, action as SetHitsoundAction);
       }
     }
   }
@@ -634,6 +647,67 @@ export function convertAudioZipper(
         eventType: EventType.TWIRL,
       } as TwirlAction);
     }
+
+    tileDataList.push(tileData);
+  }
+
+  return { tileDataList, mapSetting };
+}
+
+/**
+ * 全采音模式转换器
+ * 完全等价移植自 Python 版本的 FullSampleConverter
+ * 
+ * 核心原理：
+ * - 将音频重采样到目标伪采样率（如8000Hz）
+ * - 每个采样点对应一个砖块
+ * - 砖块设置打击音(Kick)和音量(0-100)
+ * - 轨道为直线（角度0°）
+ * - BPM = 伪采样率 × 60
+ */
+export function convertFullSample(
+  volumes: number[],
+  pseudoSampleRate: number,
+  songFilename: string = ""
+): { tileDataList: TileData[]; mapSetting: MapSetting } {
+  if (volumes.length === 0) {
+    return {
+      tileDataList: [],
+      mapSetting: createDefaultMapSetting(),
+    };
+  }
+
+  const mapSetting = createDefaultMapSetting();
+  
+  // BPM = 伪采样率 × 60
+  mapSetting.bpm = pseudoSampleRate * 60.0;
+  
+  // 设置打击音默认值
+  mapSetting.hitsound = "Kick";
+  mapSetting.hitsoundVolume = 100;
+  
+  // 设置歌曲文件名
+  if (songFilename) {
+    mapSetting.songFilename = songFilename;
+  }
+
+  const tileDataList: TileData[] = [];
+
+  // 添加起始瓷砖 (floor 0)
+  tileDataList.push(createTileData(0, 0));
+
+  // 为每个采样点添加瓷砖和SetHitsound事件
+  for (let i = 0; i < volumes.length; i++) {
+    const tileData = createTileData(i + 1, 0); // 直线轨道，所有角度为0
+
+    // 添加SetHitsound事件
+    const hitsoundActionList = getActionList(tileData, EventType.SET_HITSOUND);
+    hitsoundActionList.push({
+      eventType: EventType.SET_HITSOUND,
+      gameSound: "Hitsound",
+      hitsound: "Kick",
+      hitsoundVolume: volumes[i],
+    } as SetHitsoundAction);
 
     tileDataList.push(tileData);
   }

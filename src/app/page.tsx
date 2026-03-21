@@ -46,13 +46,14 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { useConverterStore } from "@/lib/store";
 import { MidiParser, getTrackInfo } from "@/lib/core/midi-parser";
-import { AudioProcessor } from "@/lib/core/audio-processor";
+import { AudioProcessor, FullSampleProcessor } from "@/lib/core/audio-processor";
 import { BeatDetector, median } from "@/lib/core/beat-detector";
 import {
   convertAngleData,
   convertZipperAngle,
   convertAudioAngleData,
   convertAudioZipper,
+  convertFullSample,
   generateMapJson,
 } from "@/lib/core/map-data";
 
@@ -74,6 +75,8 @@ export default function Home() {
     heightMax,
     baseBpm,
     customAngle,
+    pseudoSampleRate,
+    useFloatVolume,
     isProcessing,
     processingStep,
     progress,
@@ -92,6 +95,8 @@ export default function Home() {
     setHeightMax,
     setBaseBpm,
     setCustomAngle,
+    setPseudoSampleRate,
+    setUseFloatVolume,
     setProcessing,
     setResult,
     setError,
@@ -226,56 +231,109 @@ export default function Home() {
         });
       } else {
         // 音频处理
-        setProcessing(true, t("convert.detectingBeats"), 20);
+        if (convertMode === "fullsample") {
+          // 全采音模式处理
+          setProcessing(true, t("convert.resamplingAudio"), 10);
 
-        const processor = new AudioProcessor();
-        const loaded = await processor.load(file);
+          const fullSampleProcessor = new FullSampleProcessor();
+          
+          // 加载并处理音频
+          const success = await fullSampleProcessor.loadAndProcess(
+            file,
+            pseudoSampleRate,
+            useFloatVolume,
+            (step, progress) => {
+              if (step === "loading") {
+                setProcessing(true, t("convert.resamplingAudio"), 10 + progress * 0.2);
+              } else if (step === "resampling") {
+                setProcessing(true, t("convert.resamplingAudio"), 30 + progress * 0.4);
+              } else if (step === "calculating") {
+                setProcessing(true, t("convert.calculatingVolumes"), 70 + progress * 0.2);
+              }
+            }
+          );
 
-        if (!loaded) {
-          throw new Error(t("error.fileLoadFailed"));
-        }
+          if (!success) {
+            throw new Error(t("error.audioLoadFailed"));
+          }
 
-        setProcessing(true, t("convert.detectingBeats"), 40);
+          const volumes = fullSampleProcessor.getVolumes();
+          const sampleCount = fullSampleProcessor.getSampleCount();
+          const volumeRange = fullSampleProcessor.getVolumeRange();
 
-        const detector = new BeatDetector();
-        let beatTimes: number[];
+          setProcessing(true, t("convert.generatingLevel"), 90);
 
-        if (audioSampleMode === "peak") {
-          const energySignal = processor.getEnergySignal();
-          beatTimes = detector.detectPeaks(energySignal, processor.getSampleRate(), heightMin, heightMax);
-        } else {
-          beatTimes = detector.detectAllSamples(processor.getSampleRate(), processor.getTotalSamples());
-        }
-
-        if (beatTimes.length === 0) {
-          throw new Error(t("error.noBeatsDetected"));
-        }
-
-        estimatedBpm = BeatDetector.estimateBpm(beatTimes);
-
-        setProcessing(true, t("convert.generatingLevel"), 60);
-
-        if (convertMode === "angle") {
-          const result = convertAudioAngleData(beatTimes, baseBpm, estimatedBpm);
+          // 使用 convertFullSample 生成谱面
+          const result = convertFullSample(volumes, pseudoSampleRate, file.name.replace(/\.wav$/i, ".wav"));
           json = generateMapJson(result.tileDataList, result.mapSetting, true);
           estimatedBpm = result.mapSetting.bpm;
+
+          outputName = file.name.replace(/\.wav$/i, `_fullsample_${pseudoSampleRate}.adofai`);
+
+          setProcessing(true, t("convert.generatingLevel"), 95);
+
+          setResult(json, outputName, {
+            tileCount: sampleCount + 1,
+            bpm: estimatedBpm,
+            duration: sampleCount / pseudoSampleRate,
+            sampleRate: pseudoSampleRate,
+            beatCount: sampleCount,
+            volumeMin: volumeRange.min,
+            volumeMax: volumeRange.max,
+          });
         } else {
-          const result = convertAudioZipper(beatTimes, customAngle, estimatedBpm);
-          json = generateMapJson(result.tileDataList, result.mapSetting, true);
+          // 普通音频处理
+          setProcessing(true, t("convert.detectingBeats"), 20);
+
+          const processor = new AudioProcessor();
+          const loaded = await processor.load(file);
+
+          if (!loaded) {
+            throw new Error(t("error.fileLoadFailed"));
+          }
+
+          setProcessing(true, t("convert.detectingBeats"), 40);
+
+          const detector = new BeatDetector();
+          let beatTimes: number[];
+
+          if (audioSampleMode === "peak") {
+            const energySignal = processor.getEnergySignal();
+            beatTimes = detector.detectPeaks(energySignal, processor.getSampleRate(), heightMin, heightMax);
+          } else {
+            beatTimes = detector.detectAllSamples(processor.getSampleRate(), processor.getTotalSamples());
+          }
+
+          if (beatTimes.length === 0) {
+            throw new Error(t("error.noBeatsDetected"));
+          }
+
+          estimatedBpm = BeatDetector.estimateBpm(beatTimes);
+
+          setProcessing(true, t("convert.generatingLevel"), 60);
+
+          if (convertMode === "angle") {
+            const result = convertAudioAngleData(beatTimes, baseBpm, estimatedBpm);
+            json = generateMapJson(result.tileDataList, result.mapSetting, true);
+            estimatedBpm = result.mapSetting.bpm;
+          } else {
+            const result = convertAudioZipper(beatTimes, customAngle, estimatedBpm);
+            json = generateMapJson(result.tileDataList, result.mapSetting, true);
+          }
+
+          const modeSuffix = audioSampleMode === "peak" ? "_peak" : "_full";
+          outputName = file.name.replace(/\.wav$/i, `${modeSuffix}_${convertMode}.adofai`);
+
+          setProcessing(true, t("convert.generatingLevel"), 90);
+
+          setResult(json, outputName, {
+            tileCount: beatTimes.length,
+            bpm: baseBpm ?? estimatedBpm,
+            duration: processor.getDuration(),
+            sampleRate: processor.getSampleRate(),
+            beatCount: beatTimes.length,
+          });
         }
-
-        const modeSuffix = audioSampleMode === "peak" ? "_peak" : "_full";
-        outputName = file.name.replace(/\.wav$/i, `${modeSuffix}_${convertMode}.adofai`);
-
-        setProcessing(true, t("convert.generatingLevel"), 90);
-
-        setResult(json, outputName, {
-          tileCount: beatTimes.length,
-          bpm: baseBpm ?? estimatedBpm,
-          duration: processor.getDuration(),
-          sampleRate: processor.getSampleRate(),
-          beatCount: beatTimes.length,
-        });
       }
     } catch (err) {
       console.error("Conversion error:", err);
@@ -292,6 +350,8 @@ export default function Home() {
     heightMax,
     baseBpm,
     customAngle,
+    pseudoSampleRate,
+    useFloatVolume,
     setProcessing,
     setResult,
     setError,
@@ -460,8 +520,8 @@ export default function Home() {
                 <CardContent>
                   <RadioGroup
                     value={convertMode}
-                    onValueChange={(v) => setConvertMode(v as "angle" | "zipper")}
-                    className="grid grid-cols-2 gap-4"
+                    onValueChange={(v) => setConvertMode(v as "angle" | "zipper" | "fullsample")}
+                    className={`grid gap-4 ${inputSource === "audio" ? "grid-cols-3" : "grid-cols-2"}`}
                   >
                     <Label
                       htmlFor="angle"
@@ -498,6 +558,26 @@ export default function Home() {
                         <p className="text-white/60 text-xs mt-1">{t("mode.zipperDesc")}</p>
                       </div>
                     </Label>
+
+                    {inputSource === "audio" && (
+                      <Label
+                        htmlFor="fullsample"
+                        className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                          convertMode === "fullsample"
+                            ? "border-purple-500 bg-purple-500/20"
+                            : "border-white/20 hover:border-white/40"
+                        }`}
+                      >
+                        <RadioGroupItem value="fullsample" id="fullsample" className="sr-only" />
+                        <div className="p-2 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-lg">
+                          <Music className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-white font-medium">{t("mode.fullsample")}</p>
+                          <p className="text-white/60 text-xs mt-1">{t("mode.fullsampleDesc")}</p>
+                        </div>
+                      </Label>
+                    )}
                   </RadioGroup>
                 </CardContent>
               </Card>
@@ -584,67 +664,143 @@ export default function Home() {
                   {/* Audio Parameters */}
                   {inputSource === "audio" && (
                     <>
-                      <div className="space-y-3">
-                        <Label className="text-white/80">{t("params.audioMode")}</Label>
-                        <RadioGroup
-                          value={audioSampleMode}
-                          onValueChange={(v) => setAudioSampleMode(v as "peak" | "full")}
-                          className="grid grid-cols-2 gap-3"
-                        >
-                          <Label
-                            htmlFor="peak"
-                            className={`flex flex-col gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
-                              audioSampleMode === "peak"
-                                ? "border-purple-500 bg-purple-500/20"
-                                : "border-white/20"
-                            }`}
-                          >
-                            <RadioGroupItem value="peak" id="peak" className="sr-only" />
-                            <span className="text-white font-medium">{t("params.peakSampling")}</span>
-                            <span className="text-white/60 text-xs">{t("params.peakSamplingDesc")}</span>
-                          </Label>
-                          <Label
-                            htmlFor="full"
-                            className={`flex flex-col gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
-                              audioSampleMode === "full"
-                                ? "border-purple-500 bg-purple-500/20"
-                                : "border-white/20"
-                            }`}
-                          >
-                            <RadioGroupItem value="full" id="full" className="sr-only" />
-                            <span className="text-white font-medium">{t("params.fullSampling")}</span>
-                            <span className="text-white/60 text-xs">{t("params.fullSamplingDesc")}</span>
-                          </Label>
-                        </RadioGroup>
-                      </div>
-
-                      {audioSampleMode === "peak" && (
-                        <div className="grid grid-cols-2 gap-4">
+                      {/* Full Sample Mode Parameters */}
+                      {convertMode === "fullsample" ? (
+                        <div className="space-y-4">
+                          {/* Pseudo Sample Rate */}
                           <div className="space-y-2">
-                            <Label className="text-white/80">{t("params.heightMin")}</Label>
-                            <Input
-                              type="number"
-                              value={heightMin}
-                              onChange={(e) => setHeightMin(Number(e.target.value))}
-                              min={0}
-                              max={32767}
-                              className="bg-black/20 border-white/20 text-white"
-                            />
-                            <p className="text-white/40 text-xs">{t("params.heightMinDesc")}</p>
+                            <Label className="text-white/80">{t("params.pseudoSampleRate")}</Label>
+                            <div className="flex items-center gap-4">
+                              <Input
+                                type="number"
+                                value={pseudoSampleRate}
+                                onChange={(e) => setPseudoSampleRate(Math.max(1, Math.min(48000, Number(e.target.value))))}
+                                min={1}
+                                max={48000}
+                                className="bg-black/20 border-white/20 text-white"
+                              />
+                              <span className="text-white/60 text-sm">Hz</span>
+                            </div>
+                            <p className="text-white/40 text-xs">{t("params.pseudoSampleRateRange")}</p>
+                            <p className="text-white/40 text-xs">{t("params.pseudoSampleRateExample")}</p>
                           </div>
-                          <div className="space-y-2">
-                            <Label className="text-white/80">{t("params.heightMax")}</Label>
-                            <Input
-                              type="number"
-                              value={heightMax}
-                              onChange={(e) => setHeightMax(Number(e.target.value))}
-                              min={0}
-                              max={32767}
-                              className="bg-black/20 border-white/20 text-white"
-                            />
-                            <p className="text-white/40 text-xs">{t("params.heightMaxDesc")}</p>
+
+                          {/* Volume Precision */}
+                          <div className="space-y-3">
+                            <Label className="text-white/80">{t("params.volumePrecision")}</Label>
+                            <RadioGroup
+                              value={useFloatVolume ? "float" : "integer"}
+                              onValueChange={(v) => setUseFloatVolume(v === "float")}
+                              className="grid grid-cols-2 gap-3"
+                            >
+                              <Label
+                                htmlFor="integer"
+                                className={`flex flex-col gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
+                                  !useFloatVolume
+                                    ? "border-purple-500 bg-purple-500/20"
+                                    : "border-white/20"
+                                }`}
+                              >
+                                <RadioGroupItem value="integer" id="integer" className="sr-only" />
+                                <span className="text-white font-medium">{t("params.integerVolume")}</span>
+                                <span className="text-white/60 text-xs">{t("params.integerVolumeDesc")}</span>
+                              </Label>
+                              <Label
+                                htmlFor="float"
+                                className={`flex flex-col gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
+                                  useFloatVolume
+                                    ? "border-purple-500 bg-purple-500/20"
+                                    : "border-white/20"
+                                }`}
+                              >
+                                <RadioGroupItem value="float" id="float" className="sr-only" />
+                                <span className="text-white font-medium">{t("params.floatVolume")}</span>
+                                <span className="text-white/60 text-xs">{t("params.floatVolumeDesc")}</span>
+                              </Label>
+                            </RadioGroup>
+                          </div>
+
+                          {/* Preview Info */}
+                          <div className="grid grid-cols-2 gap-4 p-4 bg-black/20 rounded-lg">
+                            <div>
+                              <p className="text-white/60 text-sm">{t("convert.levelBpm", { bpm: "" }).replace(": ", ":")}</p>
+                              <p className="text-cyan-400 text-xl font-bold">
+                                {(pseudoSampleRate * 60).toLocaleString()}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-white/60 text-sm">{t("convert.estimatedTiles", { count: "" }).replace(": ", ":")}</p>
+                              <p className="text-cyan-400 text-xl font-bold">
+                                {file ? `~${Math.round((file.size / 2) * pseudoSampleRate / 44100).toLocaleString()}` : "-"}
+                              </p>
+                            </div>
                           </div>
                         </div>
+                      ) : (
+                        <>
+                          <div className="space-y-3">
+                            <Label className="text-white/80">{t("params.audioMode")}</Label>
+                            <RadioGroup
+                              value={audioSampleMode}
+                              onValueChange={(v) => setAudioSampleMode(v as "peak" | "full")}
+                              className="grid grid-cols-2 gap-3"
+                            >
+                              <Label
+                                htmlFor="peak"
+                                className={`flex flex-col gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
+                                  audioSampleMode === "peak"
+                                    ? "border-purple-500 bg-purple-500/20"
+                                    : "border-white/20"
+                                }`}
+                              >
+                                <RadioGroupItem value="peak" id="peak" className="sr-only" />
+                                <span className="text-white font-medium">{t("params.peakSampling")}</span>
+                                <span className="text-white/60 text-xs">{t("params.peakSamplingDesc")}</span>
+                              </Label>
+                              <Label
+                                htmlFor="full"
+                                className={`flex flex-col gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
+                                  audioSampleMode === "full"
+                                    ? "border-purple-500 bg-purple-500/20"
+                                    : "border-white/20"
+                                }`}
+                              >
+                                <RadioGroupItem value="full" id="full" className="sr-only" />
+                                <span className="text-white font-medium">{t("params.fullSampling")}</span>
+                                <span className="text-white/60 text-xs">{t("params.fullSamplingDesc")}</span>
+                              </Label>
+                            </RadioGroup>
+                          </div>
+
+                          {audioSampleMode === "peak" && (
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label className="text-white/80">{t("params.heightMin")}</Label>
+                                <Input
+                                  type="number"
+                                  value={heightMin}
+                                  onChange={(e) => setHeightMin(Number(e.target.value))}
+                                  min={0}
+                                  max={32767}
+                                  className="bg-black/20 border-white/20 text-white"
+                                />
+                                <p className="text-white/40 text-xs">{t("params.heightMinDesc")}</p>
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-white/80">{t("params.heightMax")}</Label>
+                                <Input
+                                  type="number"
+                                  value={heightMax}
+                                  onChange={(e) => setHeightMax(Number(e.target.value))}
+                                  min={0}
+                                  max={32767}
+                                  className="bg-black/20 border-white/20 text-white"
+                                />
+                                <p className="text-white/40 text-xs">{t("params.heightMaxDesc")}</p>
+                              </div>
+                            </div>
+                          )}
+                        </>
                       )}
                     </>
                   )}
@@ -813,6 +969,12 @@ export default function Home() {
                           <div className="p-3 bg-black/20 rounded-lg">
                             <p className="text-white/60 text-sm">{t("convert.beatsFound", { count: "" }).replace(":", "")}</p>
                             <p className="text-white text-xl font-bold">{stats.beatCount.toLocaleString()}</p>
+                          </div>
+                        )}
+                        {stats.volumeMin !== undefined && stats.volumeMax !== undefined && (
+                          <div className="p-3 bg-black/20 rounded-lg">
+                            <p className="text-white/60 text-sm">{t("convert.volumeRange", { min: "", max: "" }).replace(": ", ":")}</p>
+                            <p className="text-white text-xl font-bold">{stats.volumeMin.toFixed(1)} - {stats.volumeMax.toFixed(1)}</p>
                           </div>
                         )}
                       </div>

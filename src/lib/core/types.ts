@@ -75,23 +75,29 @@ export const TILE_ANGLES: Record<string, TileAngleInfo> = {
 
 export interface Action {
   eventType: EventType;
-  save(sb: string[], floor: number): void;
 }
 
-export interface SetSpeedAction {
+export interface SetSpeedAction extends Action {
   eventType: EventType.SET_SPEED;
   speedType: string | null;
   beatsPerMinute: number | null;
   bpmMultiplier: number | null;
 }
 
-export interface TwirlAction {
+export interface TwirlAction extends Action {
   eventType: EventType.TWIRL;
 }
 
-export interface PauseAction {
+export interface PauseAction extends Action {
   eventType: EventType.PAUSE;
   duration: number | null;
+}
+
+export interface SetHitsoundAction extends Action {
+  eventType: EventType.SET_HITSOUND;
+  gameSound: string;
+  hitsound: string;
+  hitsoundVolume: number;
 }
 
 // ============================================================================
@@ -201,9 +207,13 @@ export interface ConvertParams {
   heightMax: number;
 
   // 通用参数
-  mode: "angle" | "zipper";
+  mode: "angle" | "zipper" | "fullsample";
   baseBpm: number | null;
   customAngle: number;
+
+  // 全采音参数
+  pseudoSampleRate: number;
+  useFloatVolume: boolean;
 }
 
 // ============================================================================

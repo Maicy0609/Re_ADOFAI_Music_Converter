@@ -1,7 +1,7 @@
 {
   "app": {
     "title": "ADOFAI 音乐转换器",
-    "version": "网页版 v1.0.1",
+    "version": "网页版 v1.1.0",
     "subtitle": "将 MIDI 或音频转换为冰与火之舞谱面文件"
   },
   "nav": {
@@ -26,7 +26,9 @@
     "angle": "angleData 模式",
     "angleDesc": "纯角度控制，固定基准 BPM",
     "zipper": "拉链夹角模式",
-    "zipperDesc": "固定角度，动态 BPM (angleData + SetSpeed)"
+    "zipperDesc": "固定角度，动态 BPM (angleData + SetSpeed)",
+    "fullsample": "全采音模式",
+    "fullsampleDesc": "直线轨道，打击音播放音频（仅支持 WAV）"
   },
   "params": {
     "title": "参数设置",
@@ -49,8 +51,17 @@
     "audioMode": "采样模式",
     "peakSampling": "峰值采样",
     "peakSamplingDesc": "只采集峰值点（比左右两边都高的点）",
-    "fullSampling": "全采样",
-    "fullSamplingDesc": "采集每个采样点（生成大量瓷砖！）"
+    "fullSampling": "全采音模式",
+    "fullSamplingDesc": "直线轨道，打击音播放音频",
+    "pseudoSampleRate": "伪采样率",
+    "pseudoSampleRateDesc": "决定音频还原质量和谱面密度",
+    "pseudoSampleRateExample": "示例：8000 (默认)、4000、16000",
+    "pseudoSampleRateRange": "有效范围：1 - 48000 Hz",
+    "volumePrecision": "音量精度",
+    "integerVolume": "整数 (0-100)",
+    "integerVolumeDesc": "兼容性更好",
+    "floatVolume": "浮点数 (0.0-100.0)",
+    "floatVolumeDesc": "更精确的音量控制"
   },
   "convert": {
     "title": "转换",
@@ -63,13 +74,20 @@
     "analyzing": "正在分析文件...",
     "parsingMidi": "正在解析 MIDI 旋律...",
     "detectingBeats": "正在检测节拍...",
+    "resamplingAudio": "正在加载并重采样音频...",
+    "calculatingVolumes": "正在计算音量序列...",
     "generatingLevel": "正在生成 ADOFAI 谱面...",
     "melodyFound": "找到 {count} 个旋律事件",
     "beatsFound": "检测到 {count} 个节拍",
+    "samplesResampled": "重采样完成，共 {count} 个采样点",
     "tilesGenerated": "谱面包含 {count} 个瓷砖",
     "estimatedBpm": "估计 BPM：{bpm}",
     "medianBpm": "使用中位数 BPM：{bpm}",
-    "magicNumber": "魔法数字：180/{angle} = {magic}"
+    "magicNumber": "魔法数字：180/{angle} = {magic}",
+    "levelBpm": "谱面 BPM：{bpm} (采样率 × 60)",
+    "estimatedTiles": "预计瓷砖数量：{count}",
+    "volumeRange": "音量范围：{min} - {max}",
+    "progress": "生成谱面进度：{percent}%"
   },
   "stats": {
     "title": "统计信息",
@@ -88,7 +106,9 @@
     "angleZero": "夹角不能为 0° (无法移动)",
     "angleExceed": "夹角不能超过 180°",
     "bpmPositive": "BPM 必须大于 0",
-    "processingFailed": "处理失败"
+    "processingFailed": "处理失败",
+    "sampleRateInvalid": "采样率必须在 1 到 48000 Hz 之间",
+    "audioLoadFailed": "音频文件加载失败"
   },
   "footer": {
     "credits": "基于 Luxus io 的 Python 版本",
