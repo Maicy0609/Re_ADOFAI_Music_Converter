@@ -1,7 +1,7 @@
 {
   "app": {
     "title": "ADOFAI Music Converter",
-    "version": "Web Version v1.2.3",
+    "version": "Web Version v1.2.4",
     "subtitle": "Convert MIDI or Audio to ADOFAI Level Files"
   },
   "nav": {
@@ -113,6 +113,8 @@
   },
   "browser": {
     "compatibilityTitle": "Browser Compatibility Notice",
-    "compatibilityDesc": "Your browser does not support the File System Access API. Some features may be limited. For the best experience, please use Chrome, Edge, or other Chromium-based browsers."
+    "compatibilityDesc": "Your browser does not support the File System Access API. Some features may be limited. For the best experience, please use Chrome, Edge, or other Chromium-based browsers.",
+    "supportedTitle": "File System Access API Available",
+    "supportedDesc": "Your browser supports the File System Access API, enabling stream writing for a better file saving experience."
   }
 }

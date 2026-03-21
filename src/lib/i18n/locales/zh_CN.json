@@ -1,7 +1,7 @@
 {
   "app": {
     "title": "ADOFAI 音乐转换器",
-    "version": "网页版 v1.2.3",
+    "version": "网页版 v1.2.4",
     "subtitle": "将 MIDI 或音频转换为冰与火之舞谱面文件"
   },
   "nav": {
@@ -113,6 +113,8 @@
   },
   "browser": {
     "compatibilityTitle": "浏览器兼容性提示",
-    "compatibilityDesc": "您的浏览器不支持流式写入 API (File System Access API)，部分功能可能受限。建议使用 Chrome、Edge 或其他基于 Chromium 的浏览器以获得最佳体验。"
+    "compatibilityDesc": "您的浏览器不支持流式写入 API (File System Access API)，部分功能可能受限。建议使用 Chrome、Edge 或其他基于 Chromium 的浏览器以获得最佳体验。",
+    "supportedTitle": "流式写入 API 可用",
+    "supportedDesc": "您的浏览器支持 File System Access API，可以使用流式写入功能，提供更好的文件保存体验。"
   }
 }

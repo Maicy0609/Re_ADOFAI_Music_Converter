@@ -79,15 +79,14 @@ export default function Home() {
   const [isDragging, setIsDragging] = useState(false);
   const { toast } = useToast();
 
-  // 检测流式写入 API 支持
+  // 检测流式写入 API 支持，无论支持与否都显示提示
   useEffect(() => {
-    if (!checkFileSystemAccessSupport()) {
-      toast({
-        title: t("browser.compatibilityTitle"),
-        description: t("browser.compatibilityDesc"),
-        variant: "default",
-      });
-    }
+    const isSupported = checkFileSystemAccessSupport();
+    toast({
+      title: t(isSupported ? "browser.supportedTitle" : "browser.compatibilityTitle"),
+      description: t(isSupported ? "browser.supportedDesc" : "browser.compatibilityDesc"),
+      variant: isSupported ? "default" : "default",
+    });
   }, [toast, t]);
 
   const {
