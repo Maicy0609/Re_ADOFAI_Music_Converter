@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { InputSource, AudioSampleMode } from "./core/types";
+import { InputSource } from "./core/types";
 
 interface TrackInfo {
   id: number;
@@ -35,7 +35,6 @@ interface ConverterState {
   octaveOffset: number;
 
   // 音频参数
-  audioSampleMode: AudioSampleMode;
   heightMin: number;
   heightMax: number;
 
@@ -65,7 +64,6 @@ interface ConverterState {
   setTrackInfo: (tracks: TrackInfo[]) => void;
   toggleTrack: (trackId: number) => void;
   setOctaveOffset: (offset: number) => void;
-  setAudioSampleMode: (mode: AudioSampleMode) => void;
   setHeightMin: (value: number) => void;
   setHeightMax: (value: number) => void;
   setBaseBpm: (bpm: number | null) => void;
@@ -86,7 +84,6 @@ const initialState = {
   convertMode: "angle" as "angle" | "zipper" | "fullsample",
   trackInfo: [] as TrackInfo[],
   octaveOffset: -4,
-  audioSampleMode: "peak" as AudioSampleMode,
   heightMin: 0,
   heightMax: 32767,
   pseudoSampleRate: 8000,
@@ -136,8 +133,6 @@ export const useConverterStore = create<ConverterState>((set) => ({
     })),
 
   setOctaveOffset: (octaveOffset) => set({ octaveOffset }),
-
-  setAudioSampleMode: (audioSampleMode) => set({ audioSampleMode }),
 
   setHeightMin: (heightMin) => set({ heightMin }),
 

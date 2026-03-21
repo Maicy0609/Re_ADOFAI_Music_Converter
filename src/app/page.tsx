@@ -17,6 +17,16 @@ import {
   Globe,
   Music2,
   Zap,
+  Layers,
+  Timer,
+  Gauge,
+  Waves,
+  AudioWaveform,
+  Volume2,
+  Piano,
+  Sliders,
+  Compass,
+  Info,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -70,7 +80,6 @@ export default function Home() {
     convertMode,
     trackInfo,
     octaveOffset,
-    audioSampleMode,
     heightMin,
     heightMax,
     baseBpm,
@@ -90,7 +99,6 @@ export default function Home() {
     setTrackInfo,
     toggleTrack,
     setOctaveOffset,
-    setAudioSampleMode,
     setHeightMin,
     setHeightMax,
     setBaseBpm,
@@ -282,7 +290,7 @@ export default function Home() {
             volumeMax: volumeRange.max,
           });
         } else {
-          // 普通音频处理
+          // 普通音频处理（峰值采样）
           setProcessing(true, t("convert.detectingBeats"), 20);
 
           const processor = new AudioProcessor();
@@ -295,14 +303,8 @@ export default function Home() {
           setProcessing(true, t("convert.detectingBeats"), 40);
 
           const detector = new BeatDetector();
-          let beatTimes: number[];
-
-          if (audioSampleMode === "peak") {
-            const energySignal = processor.getEnergySignal();
-            beatTimes = detector.detectPeaks(energySignal, processor.getSampleRate(), heightMin, heightMax);
-          } else {
-            beatTimes = detector.detectAllSamples(processor.getSampleRate(), processor.getTotalSamples());
-          }
+          const energySignal = processor.getEnergySignal();
+          const beatTimes = detector.detectPeaks(energySignal, processor.getSampleRate(), heightMin, heightMax);
 
           if (beatTimes.length === 0) {
             throw new Error(t("error.noBeatsDetected"));
@@ -321,8 +323,7 @@ export default function Home() {
             json = generateMapJson(result.tileDataList, result.mapSetting, true);
           }
 
-          const modeSuffix = audioSampleMode === "peak" ? "_peak" : "_full";
-          outputName = file.name.replace(/\.wav$/i, `${modeSuffix}_${convertMode}.adofai`);
+          outputName = file.name.replace(/\.wav$/i, `_peak_${convertMode}.adofai`);
 
           setProcessing(true, t("convert.generatingLevel"), 90);
 
@@ -345,7 +346,6 @@ export default function Home() {
     convertMode,
     trackInfo,
     octaveOffset,
-    audioSampleMode,
     heightMin,
     heightMax,
     baseBpm,
@@ -592,7 +592,7 @@ export default function Home() {
               <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
-                    <Settings className="w-5 h-5" />
+                    <Sliders className="w-5 h-5" />
                     {t("params.title")}
                   </CardTitle>
                 </CardHeader>
@@ -646,7 +646,10 @@ export default function Home() {
                   {inputSource === "midi" && (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <Label className="text-white/80">{t("params.octaveOffset")}</Label>
+                        <Label className="text-white/80 flex items-center gap-2">
+                          <Piano className="w-4 h-4 text-yellow-400" />
+                          {t("params.octaveOffset")}
+                        </Label>
                         <span className="text-white font-mono">{octaveOffset}</span>
                       </div>
                       <p className="text-white/40 text-sm">{t("params.octaveDesc")}</p>
@@ -669,7 +672,10 @@ export default function Home() {
                         <div className="space-y-4">
                           {/* Pseudo Sample Rate */}
                           <div className="space-y-2">
-                            <Label className="text-white/80">{t("params.pseudoSampleRate")}</Label>
+                            <Label className="text-white/80 flex items-center gap-2">
+                              <Waves className="w-4 h-4 text-blue-400" />
+                              {t("params.pseudoSampleRate")}
+                            </Label>
                             <div className="flex items-center gap-4">
                               <Input
                                 type="number"
@@ -687,7 +693,10 @@ export default function Home() {
 
                           {/* Volume Precision */}
                           <div className="space-y-3">
-                            <Label className="text-white/80">{t("params.volumePrecision")}</Label>
+                            <Label className="text-white/80 flex items-center gap-2">
+                              <Volume2 className="w-4 h-4 text-green-400" />
+                              {t("params.volumePrecision")}
+                            </Label>
                             <RadioGroup
                               value={useFloatVolume ? "float" : "integer"}
                               onValueChange={(v) => setUseFloatVolume(v === "float")}
@@ -722,84 +731,71 @@ export default function Home() {
 
                           {/* Preview Info */}
                           <div className="grid grid-cols-2 gap-4 p-4 bg-black/20 rounded-lg">
-                            <div>
-                              <p className="text-white/60 text-sm">{t("convert.levelBpm", { bpm: "" }).replace(": ", ":")}</p>
-                              <p className="text-cyan-400 text-xl font-bold">
-                                {(pseudoSampleRate * 60).toLocaleString()}
-                              </p>
+                            <div className="flex items-start gap-3">
+                              <Gauge className="w-5 h-5 text-cyan-400 mt-0.5" />
+                              <div>
+                                <p className="text-white/60 text-sm">{t("convert.levelBpm", { bpm: "" }).replace(": ", ":")}</p>
+                                <p className="text-cyan-400 text-xl font-bold">
+                                  {(pseudoSampleRate * 60).toLocaleString()}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-white/60 text-sm">{t("convert.estimatedTiles", { count: "" }).replace(": ", ":")}</p>
-                              <p className="text-cyan-400 text-xl font-bold">
-                                {file ? `~${Math.round((file.size / 2) * pseudoSampleRate / 44100).toLocaleString()}` : "-"}
-                              </p>
+                            <div className="flex items-start gap-3">
+                              <Layers className="w-5 h-5 text-cyan-400 mt-0.5" />
+                              <div>
+                                <p className="text-white/60 text-sm">{t("convert.estimatedTiles", { count: "" }).replace(": ", ":")}</p>
+                                <p className="text-cyan-400 text-xl font-bold">
+                                  {file ? `~${Math.round((file.size / 2) * pseudoSampleRate / 44100).toLocaleString()}` : "-"}
+                                </p>
+                              </div>
                             </div>
                           </div>
                         </div>
                       ) : (
                         <>
+                          {/* 峰值采样阈值设置 */}
                           <div className="space-y-3">
-                            <Label className="text-white/80">{t("params.audioMode")}</Label>
-                            <RadioGroup
-                              value={audioSampleMode}
-                              onValueChange={(v) => setAudioSampleMode(v as "peak" | "full")}
-                              className="grid grid-cols-2 gap-3"
-                            >
-                              <Label
-                                htmlFor="peak"
-                                className={`flex flex-col gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
-                                  audioSampleMode === "peak"
-                                    ? "border-purple-500 bg-purple-500/20"
-                                    : "border-white/20"
-                                }`}
-                              >
-                                <RadioGroupItem value="peak" id="peak" className="sr-only" />
-                                <span className="text-white font-medium">{t("params.peakSampling")}</span>
-                                <span className="text-white/60 text-xs">{t("params.peakSamplingDesc")}</span>
-                              </Label>
-                              <Label
-                                htmlFor="full"
-                                className={`flex flex-col gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
-                                  audioSampleMode === "full"
-                                    ? "border-purple-500 bg-purple-500/20"
-                                    : "border-white/20"
-                                }`}
-                              >
-                                <RadioGroupItem value="full" id="full" className="sr-only" />
-                                <span className="text-white font-medium">{t("params.fullSampling")}</span>
-                                <span className="text-white/60 text-xs">{t("params.fullSamplingDesc")}</span>
-                              </Label>
-                            </RadioGroup>
+                            <div className="flex items-center gap-2">
+                              <AudioWaveform className="w-4 h-4 text-purple-400" />
+                              <Label className="text-white/80">{t("params.peakSampling")}</Label>
+                              <Badge variant="outline" className="text-purple-400 border-purple-400/50">
+                                {t("params.peakSamplingDesc")}
+                              </Badge>
+                            </div>
                           </div>
 
-                          {audioSampleMode === "peak" && (
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label className="text-white/80">{t("params.heightMin")}</Label>
-                                <Input
-                                  type="number"
-                                  value={heightMin}
-                                  onChange={(e) => setHeightMin(Number(e.target.value))}
-                                  min={0}
-                                  max={32767}
-                                  className="bg-black/20 border-white/20 text-white"
-                                />
-                                <p className="text-white/40 text-xs">{t("params.heightMinDesc")}</p>
-                              </div>
-                              <div className="space-y-2">
-                                <Label className="text-white/80">{t("params.heightMax")}</Label>
-                                <Input
-                                  type="number"
-                                  value={heightMax}
-                                  onChange={(e) => setHeightMax(Number(e.target.value))}
-                                  min={0}
-                                  max={32767}
-                                  className="bg-black/20 border-white/20 text-white"
-                                />
-                                <p className="text-white/40 text-xs">{t("params.heightMaxDesc")}</p>
-                              </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label className="text-white/80 flex items-center gap-2">
+                                <Volume2 className="w-4 h-4 text-cyan-400" />
+                                {t("params.heightMin")}
+                              </Label>
+                              <Input
+                                type="number"
+                                value={heightMin}
+                                onChange={(e) => setHeightMin(Number(e.target.value))}
+                                min={0}
+                                max={32767}
+                                className="bg-black/20 border-white/20 text-white"
+                              />
+                              <p className="text-white/40 text-xs">{t("params.heightMinDesc")}</p>
                             </div>
-                          )}
+                            <div className="space-y-2">
+                              <Label className="text-white/80 flex items-center gap-2">
+                                <Volume2 className="w-4 h-4 text-orange-400" />
+                                {t("params.heightMax")}
+                              </Label>
+                              <Input
+                                type="number"
+                                value={heightMax}
+                                onChange={(e) => setHeightMax(Number(e.target.value))}
+                                min={0}
+                                max={32767}
+                                className="bg-black/20 border-white/20 text-white"
+                              />
+                              <p className="text-white/40 text-xs">{t("params.heightMaxDesc")}</p>
+                            </div>
+                          </div>
                         </>
                       )}
                     </>
@@ -810,7 +806,10 @@ export default function Home() {
                   {/* Base BPM (angle mode) */}
                   {convertMode === "angle" && (
                     <div className="space-y-2">
-                      <Label className="text-white/80">{t("params.baseBpm")}</Label>
+                      <Label className="text-white/80 flex items-center gap-2">
+                        <Gauge className="w-4 h-4 text-cyan-400" />
+                        {t("params.baseBpm")}
+                      </Label>
                       <Input
                         type="number"
                         placeholder={t("params.baseBpmAuto")}
@@ -829,7 +828,10 @@ export default function Home() {
                   {convertMode === "zipper" && (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <Label className="text-white/80">{t("params.customAngle")}</Label>
+                        <Label className="text-white/80 flex items-center gap-2">
+                          <Compass className="w-4 h-4 text-orange-400" />
+                          {t("params.customAngle")}
+                        </Label>
                         <span className="text-white font-mono">{customAngle}°</span>
                       </div>
                       <Slider
@@ -890,7 +892,7 @@ export default function Home() {
                         <Button
                           onClick={handleReset}
                           variant="outline"
-                          className="border-white/20 text-white hover:bg-white/10"
+                          className="border-purple-400/50 text-purple-300 hover:bg-purple-500/20 hover:text-white hover:border-purple-400"
                           size="lg"
                         >
                           <RotateCcw className="w-5 h-5" />
@@ -941,40 +943,61 @@ export default function Home() {
 
                       {/* Stats Grid */}
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-                        <div className="p-3 bg-black/20 rounded-lg">
-                          <p className="text-white/60 text-sm">{t("stats.tileCount")}</p>
-                          <p className="text-white text-xl font-bold">{stats.tileCount.toLocaleString()}</p>
+                        <div className="p-3 bg-black/20 rounded-lg flex items-start gap-3">
+                          <Layers className="w-5 h-5 text-purple-400 mt-0.5" />
+                          <div>
+                            <p className="text-white/60 text-sm">{t("stats.tileCount")}</p>
+                            <p className="text-white text-xl font-bold">{stats.tileCount.toLocaleString()}</p>
+                          </div>
                         </div>
-                        <div className="p-3 bg-black/20 rounded-lg">
-                          <p className="text-white/60 text-sm">{t("stats.bpm")}</p>
-                          <p className="text-white text-xl font-bold">{stats.bpm.toFixed(1)}</p>
+                        <div className="p-3 bg-black/20 rounded-lg flex items-start gap-3">
+                          <Gauge className="w-5 h-5 text-cyan-400 mt-0.5" />
+                          <div>
+                            <p className="text-white/60 text-sm">{t("stats.bpm")}</p>
+                            <p className="text-white text-xl font-bold">{stats.bpm.toFixed(1)}</p>
+                          </div>
                         </div>
-                        <div className="p-3 bg-black/20 rounded-lg">
-                          <p className="text-white/60 text-sm">{t("stats.duration")}</p>
-                          <p className="text-white text-xl font-bold">{stats.duration.toFixed(2)}s</p>
+                        <div className="p-3 bg-black/20 rounded-lg flex items-start gap-3">
+                          <Timer className="w-5 h-5 text-green-400 mt-0.5" />
+                          <div>
+                            <p className="text-white/60 text-sm">{t("stats.duration")}</p>
+                            <p className="text-white text-xl font-bold">{stats.duration.toFixed(2)}s</p>
+                          </div>
                         </div>
                         {stats.sampleRate && (
-                          <div className="p-3 bg-black/20 rounded-lg">
-                            <p className="text-white/60 text-sm">{t("stats.sampleRate")}</p>
-                            <p className="text-white text-xl font-bold">{(stats.sampleRate / 1000).toFixed(1)}k</p>
+                          <div className="p-3 bg-black/20 rounded-lg flex items-start gap-3">
+                            <Waves className="w-5 h-5 text-blue-400 mt-0.5" />
+                            <div>
+                              <p className="text-white/60 text-sm">{t("stats.sampleRate")}</p>
+                              <p className="text-white text-xl font-bold">{(stats.sampleRate / 1000).toFixed(1)}k</p>
+                            </div>
                           </div>
                         )}
                         {stats.trackCount && (
-                          <div className="p-3 bg-black/20 rounded-lg">
-                            <p className="text-white/60 text-sm">{t("stats.trackCount")}</p>
-                            <p className="text-white text-xl font-bold">{stats.trackCount}</p>
+                          <div className="p-3 bg-black/20 rounded-lg flex items-start gap-3">
+                            <Piano className="w-5 h-5 text-yellow-400 mt-0.5" />
+                            <div>
+                              <p className="text-white/60 text-sm">{t("stats.trackCount")}</p>
+                              <p className="text-white text-xl font-bold">{stats.trackCount}</p>
+                            </div>
                           </div>
                         )}
                         {stats.beatCount && (
-                          <div className="p-3 bg-black/20 rounded-lg">
-                            <p className="text-white/60 text-sm">{t("convert.beatsFound", { count: "" }).replace(":", "")}</p>
-                            <p className="text-white text-xl font-bold">{stats.beatCount.toLocaleString()}</p>
+                          <div className="p-3 bg-black/20 rounded-lg flex items-start gap-3">
+                            <AudioWaveform className="w-5 h-5 text-pink-400 mt-0.5" />
+                            <div>
+                              <p className="text-white/60 text-sm">{t("convert.beatsFound", { count: "" }).replace(":", "")}</p>
+                              <p className="text-white text-xl font-bold">{stats.beatCount.toLocaleString()}</p>
+                            </div>
                           </div>
                         )}
                         {stats.volumeMin !== undefined && stats.volumeMax !== undefined && (
-                          <div className="p-3 bg-black/20 rounded-lg">
-                            <p className="text-white/60 text-sm">{t("convert.volumeRange", { min: "", max: "" }).replace(": ", ":")}</p>
-                            <p className="text-white text-xl font-bold">{stats.volumeMin.toFixed(1)} - {stats.volumeMax.toFixed(1)}</p>
+                          <div className="p-3 bg-black/20 rounded-lg flex items-start gap-3">
+                            <Volume2 className="w-5 h-5 text-orange-400 mt-0.5" />
+                            <div>
+                              <p className="text-white/60 text-sm">{t("convert.volumeRange", { min: "", max: "" }).replace(": ", ":")}</p>
+                              <p className="text-white text-xl font-bold">{stats.volumeMin.toFixed(1)} - {stats.volumeMax.toFixed(1)}</p>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1001,7 +1024,8 @@ export default function Home() {
             >
               <Accordion type="single" collapsible className="w-full">
                 <AccordionItem value="info" className="border-white/10">
-                  <AccordionTrigger className="text-white hover:text-white/80">
+                  <AccordionTrigger className="text-white hover:text-white/80 flex items-center gap-2">
+                    <Info className="w-4 h-4" />
                     How it works
                   </AccordionTrigger>
                   <AccordionContent className="text-white/60 space-y-2">

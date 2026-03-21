@@ -1,8 +1,6 @@
 /**
  * Beat Detector - 完全等价移植自 Python 版本
- * 支持两种模式：
- * 1. 峰值采样 - 只采集峰值点，可调阈值
- * 2. 采样点全采样 - 采集每个采样点
+ * 峰值采样 - 只采集峰值点，可调阈值
  */
 
 /**
@@ -43,21 +41,6 @@ export class BeatDetector {
     // 转换为时间 (秒)
     this.beatTimes = peaks.map((peak) => peak / sampleRate);
 
-    return this.beatTimes;
-  }
-
-  /**
-   * 采样点全采样模式：采集每个采样点
-   * 完全等价移植自 Python 版本的 detect_all_samples
-   * @param sampleRate - 采样率
-   * @param totalSamples - 总采样点数
-   * @returns 节拍时间点列表 (秒)
-   */
-  detectAllSamples(sampleRate: number, totalSamples: number): number[] {
-    this.beatTimes = [];
-    for (let i = 0; i < totalSamples; i++) {
-      this.beatTimes.push(i / sampleRate);
-    }
     return this.beatTimes;
   }
 
