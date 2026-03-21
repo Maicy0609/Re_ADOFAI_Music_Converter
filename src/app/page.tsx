@@ -78,16 +78,28 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const { toast } = useToast();
+  const [mounted, setMounted] = useState(false);
+
+  // 确保组件已在客户端完全挂载
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // 检测流式写入 API 支持，无论支持与否都显示提示
+  // 只在客户端挂载后执行，避免 SSR hydration 问题
   useEffect(() => {
-    const isSupported = checkFileSystemAccessSupport();
-    toast({
-      title: t(isSupported ? "browser.supportedTitle" : "browser.compatibilityTitle"),
-      description: t(isSupported ? "browser.supportedDesc" : "browser.compatibilityDesc"),
-      variant: isSupported ? "default" : "default",
-    });
-  }, [toast, t]);
+    if (!mounted) return;
+
+    const timer = setTimeout(() => {
+      const isSupported = checkFileSystemAccessSupport();
+      toast({
+        title: t(isSupported ? "browser.supportedTitle" : "browser.compatibilityTitle"),
+        description: t(isSupported ? "browser.supportedDesc" : "browser.compatibilityDesc"),
+      });
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [mounted, toast, t]);
 
   const {
     file,

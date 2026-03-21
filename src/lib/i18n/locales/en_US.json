@@ -1,7 +1,7 @@
 {
   "app": {
     "title": "ADOFAI Music Converter",
-    "version": "Web Version v1.2.6",
+    "version": "Web Version v1.2.7",
     "subtitle": "Convert MIDI or Audio to ADOFAI Level Files"
   },
   "nav": {
