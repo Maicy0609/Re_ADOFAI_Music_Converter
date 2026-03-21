@@ -112,7 +112,7 @@ src/
 
 ## Acknowledgments
 
-- Original Python developer: [Luxus io](https://github.com/Luxusio/ADOFAI-Midi-Converter)
+- Original Java developer: [Luxus io](https://github.com/Luxusio/ADOFAI-Midi-Converter)
 - [pyadofai](https://github.com/TonyLimps/pyadofai) - angleData calculation reference
 - [apofai](https://github.com/sky-sama/apofai_main_console) - Audio beat detection reference
 
