@@ -384,7 +384,8 @@ export default function Home() {
   const handleDownload = () => {
     if (!resultJson || !resultFileName) return;
 
-    const blob = new Blob([resultJson], { type: "application/json" });
+    // 使用 application/octet-stream 避免浏览器自动添加 .json 后缀
+    const blob = new Blob([resultJson], { type: "application/octet-stream" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
