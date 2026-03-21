@@ -1,7 +1,7 @@
 {
   "app": {
     "title": "ADOFAI Music Converter",
-    "version": "Web Version v1.0.0",
+    "version": "Web Version v1.2.1",
     "subtitle": "Convert MIDI or Audio to ADOFAI Level Files"
   },
   "nav": {
@@ -91,7 +91,7 @@
     "processingFailed": "Processing failed"
   },
   "footer": {
-    "credits": "Based on Python version by Luxus io",
+    "credits": "Upstream Repository",
     "github": "View on GitHub"
   }
 }

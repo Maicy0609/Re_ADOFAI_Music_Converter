@@ -870,14 +870,13 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-white/10 bg-black/20 mt-16">
         <div className="container mx-auto px-4 py-6 flex items-center justify-between text-white/60 text-sm">
-          <p>{t("footer.credits")}</p>
           <a
-            href="https://github.com/Luxusio/ADOFAI-Midi-Converter"
+            href="https://github.com/Maicy0609/ADOFAI_Music_Converter"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 hover:text-white transition-colors"
           >
-            {t("footer.github")}
+            {t("footer.credits")}
             <svg
               className="w-4 h-4"
               fill="currentColor"
