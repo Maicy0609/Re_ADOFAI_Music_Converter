@@ -1,7 +1,7 @@
 {
   "app": {
     "title": "ADOFAI 音乐转换器",
-    "version": "网页版 v1.2.4",
+    "version": "网页版 v1.2.5",
     "subtitle": "将 MIDI 或音频转换为冰与火之舞谱面文件"
   },
   "nav": {

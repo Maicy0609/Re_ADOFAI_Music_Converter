@@ -239,12 +239,14 @@ export default function Home() {
           const result = convertAngleData(usDelayList, baseBpm);
           json = generateMapJson(result.tileDataList, result.mapSetting, true);
           estimatedBpm = result.mapSetting.bpm;
+          // MIDI angle模式: 音乐名_八度偏移_angle.adofai
+          outputName = file.name.replace(/\.(mid|midi)$/i, `_${octaveOffset}_angle.adofai`);
         } else {
           const result = convertZipperAngle(usDelayList, customAngle, estimatedBpm);
           json = generateMapJson(result.tileDataList, result.mapSetting, true);
+          // MIDI zipper模式: 音乐名_zipper_八度偏移_角度.adofai
+          outputName = file.name.replace(/\.(mid|midi)$/i, `_zipper_${octaveOffset}_${customAngle}.adofai`);
         }
-
-        outputName = file.name.replace(/\.(mid|midi)$/i, `_${convertMode}.adofai`);
 
         setProcessing(true, t("convert.generatingLevel"), 90);
 
@@ -293,6 +295,7 @@ export default function Home() {
           json = generateMapJson(result.tileDataList, result.mapSetting, true);
           estimatedBpm = result.mapSetting.bpm;
 
+          // 全采样模式: 音乐名_fullsample_伪采样率.adofai
           outputName = file.name.replace(/\.wav$/i, `_fullsample_${pseudoSampleRate}.adofai`);
 
           setProcessing(true, t("convert.generatingLevel"), 95);
@@ -335,12 +338,14 @@ export default function Home() {
             const result = convertAudioAngleData(beatTimes, baseBpm, estimatedBpm);
             json = generateMapJson(result.tileDataList, result.mapSetting, true);
             estimatedBpm = result.mapSetting.bpm;
+            // 峰值采样 angle模式: 音乐名_peak_angle.adofai
+            outputName = file.name.replace(/\.wav$/i, `_peak_angle.adofai`);
           } else {
             const result = convertAudioZipper(beatTimes, customAngle, estimatedBpm);
             json = generateMapJson(result.tileDataList, result.mapSetting, true);
+            // 峰值采样 zipper模式: 音乐名_peak_zipper_角度.adofai
+            outputName = file.name.replace(/\.wav$/i, `_peak_zipper_${customAngle}.adofai`);
           }
-
-          outputName = file.name.replace(/\.wav$/i, `_peak_${convertMode}.adofai`);
 
           setProcessing(true, t("convert.generatingLevel"), 90);
 
