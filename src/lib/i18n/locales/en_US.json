@@ -1,7 +1,7 @@
 {
   "app": {
     "title": "ADOFAI Music Converter",
-    "version": "Web Version v1.2.2",
+    "version": "Web Version v1.2.3",
     "subtitle": "Convert MIDI or Audio to ADOFAI Level Files"
   },
   "nav": {
@@ -108,7 +108,11 @@
     "audioLoadFailed": "Failed to load audio file"
   },
   "footer": {
-    "credits": "Based on Python version by Luxus io",
+    "credits": "Based on Python version by Maicy0609",
     "github": "View on GitHub"
+  },
+  "browser": {
+    "compatibilityTitle": "Browser Compatibility Notice",
+    "compatibilityDesc": "Your browser does not support the File System Access API. Some features may be limited. For the best experience, please use Chrome, Edge, or other Chromium-based browsers."
   }
 }

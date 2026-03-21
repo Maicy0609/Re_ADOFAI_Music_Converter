@@ -66,11 +66,29 @@ import {
   convertFullSample,
   generateMapJson,
 } from "@/lib/core/map-data";
+import { useToast } from "@/hooks/use-toast";
+
+// 检测浏览器是否支持 File System Access API
+const checkFileSystemAccessSupport = (): boolean => {
+  return 'showSaveFilePicker' in window;
+};
 
 export default function Home() {
   const { locale, t, setLocale } = useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const { toast } = useToast();
+
+  // 检测流式写入 API 支持
+  useEffect(() => {
+    if (!checkFileSystemAccessSupport()) {
+      toast({
+        title: t("browser.compatibilityTitle"),
+        description: t("browser.compatibilityDesc"),
+        variant: "default",
+      });
+    }
+  }, [toast, t]);
 
   const {
     file,
@@ -1058,7 +1076,7 @@ export default function Home() {
         <div className="container mx-auto px-4 py-6 flex items-center justify-between text-white/60 text-sm">
           <p>{t("footer.credits")}</p>
           <a
-            href="https://github.com/Luxusio/ADOFAI-Midi-Converter"
+            href="https://github.com/Maicy0609/ADOFAI_Music_Converter/"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 hover:text-white transition-colors"
