@@ -458,3 +458,42 @@ export function getTrackInfo(midiFile: MidiFileData): { id: number; size: number
     size: track.events.length,
   }));
 }
+
+/**
+ * 提取单个轨道的音符列表（用于大圈圈模式）
+ * @param midiFile - 解析后的 MIDI 数据
+ * @param trackIndex - 轨道索引
+ * @returns 音符列表 [[时间秒, MIDI音高], ...]
+ */
+export function extractTrackNotes(midiFile: MidiFileData, trackIndex: number): [number, number][] {
+  if (trackIndex >= midiFile.tracks.length) {
+    return [];
+  }
+  
+  const track = midiFile.tracks[trackIndex];
+  const resolution = midiFile.ticksPerBeat;
+  let tempo = 500000; // 默认 tempo (微秒/拍)
+  let timebound = 0;
+  const notes: [number, number][] = [];
+  
+  for (const msg of track.events) {
+    if (msg.type === "set_tempo") {
+      tempo = msg.tempo!;
+    }
+    if (msg.time > 0) {
+      timebound += msg.time / resolution * tempo * 1e-6;
+    }
+    if (msg.type === "note_on" && msg.velocity! > 0) {
+      notes.push([timebound, msg.note!]);
+    }
+  }
+  
+  return notes;
+}
+
+/**
+ * 提取所有轨道的音符列表（用于大圈圈模式）
+ */
+export function extractAllTrackNotes(midiFile: MidiFileData): [number, number][][] {
+  return midiFile.tracks.map((_, index) => extractTrackNotes(midiFile, index));
+}

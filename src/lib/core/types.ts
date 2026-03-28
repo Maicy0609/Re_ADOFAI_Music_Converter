@@ -91,6 +91,16 @@ export interface TwirlAction extends Action {
 export interface PauseAction extends Action {
   eventType: EventType.PAUSE;
   duration: number | null;
+  countdownTicks?: number;
+  angleCorrectionDir?: number;
+}
+
+export interface PositionTrackAction extends Action {
+  eventType: EventType.POSITION_TRACK;
+  positionOffset: number[] | null;
+  relativeTo: (number | string)[] | null;
+  justThisTile: boolean;
+  editorOnly: boolean;
 }
 
 export interface SetHitsoundAction extends Action {
@@ -207,7 +217,7 @@ export interface ConvertParams {
   heightMax: number;
 
   // 通用参数
-  mode: "angle" | "zipper" | "fullsample";
+  mode: "angle" | "zipper" | "fullsample" | "bigcircle";
   baseBpm: number | null;
   customAngle: number;
 
@@ -235,4 +245,22 @@ export interface ConvertResult {
     bpm: number;
     duration: number;
   };
+}
+
+// ============================================================================
+// 大圈圈模式多文件结果类型
+// ============================================================================
+
+export interface BigCircleTrackResult {
+  trackIndex: number;
+  json: string;
+  fileName: string;
+  tileCount: number;
+  offset: number;
+}
+
+export interface BigCircleConvertResult {
+  success: boolean;
+  results: BigCircleTrackResult[];
+  error: string | null;
 }

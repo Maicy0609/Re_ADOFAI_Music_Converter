@@ -18,6 +18,14 @@ interface ConvertStats {
   volumeMax?: number;
 }
 
+interface BigCircleResult {
+  trackIndex: number;
+  json: string;
+  fileName: string;
+  tileCount: number;
+  offset: number;
+}
+
 interface ConverterState {
   // 文件状态
   file: File | null;
@@ -28,7 +36,7 @@ interface ConverterState {
   inputSource: InputSource;
 
   // 转换模式
-  convertMode: "angle" | "zipper" | "fullsample";
+  convertMode: "angle" | "zipper" | "fullsample" | "bigcircle";
 
   // MIDI 参数
   trackInfo: TrackInfo[];
@@ -55,6 +63,7 @@ interface ConverterState {
   resultJson: string | null;
   resultFileName: string | null;
   stats: ConvertStats | null;
+  bigCircleResults: BigCircleResult[] | null;
   error: string | null;
 
   // Actions
@@ -72,6 +81,7 @@ interface ConverterState {
   setUseFloatVolume: (useFloat: boolean) => void;
   setProcessing: (isProcessing: boolean, step?: string, progress?: number) => void;
   setResult: (json: string | null, fileName: string | null, stats: ConvertStats | null) => void;
+  setBigCircleResults: (results: BigCircleResult[] | null) => void;
   setError: (error: string | null) => void;
   reset: () => void;
 }
@@ -96,6 +106,7 @@ const initialState = {
   resultJson: null as string | null,
   resultFileName: null as string | null,
   stats: null as ConvertStats | null,
+  bigCircleResults: null as BigCircleResult[] | null,
   error: null as string | null,
 };
 
@@ -116,6 +127,7 @@ export const useConverterStore = create<ConverterState>((set) => ({
       resultJson: null,
       resultFileName: null,
       stats: null,
+      bigCircleResults: null,
       error: null,
     }),
 
@@ -154,6 +166,18 @@ export const useConverterStore = create<ConverterState>((set) => ({
       resultJson,
       resultFileName,
       stats,
+      bigCircleResults: null,
+      isProcessing: false,
+      processingStep: "",
+      progress: 100,
+    }),
+
+  setBigCircleResults: (bigCircleResults) =>
+    set({
+      bigCircleResults,
+      resultJson: null,
+      resultFileName: null,
+      stats: null,
       isProcessing: false,
       processingStep: "",
       progress: 100,

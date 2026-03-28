@@ -3,7 +3,7 @@
  * 生成 ADOFAI 谱面数据
  */
 
-import { EventType, MapSetting, TileData, Action, SetSpeedAction, TwirlAction, PauseAction, SetHitsoundAction } from "./types";
+import { EventType, MapSetting, TileData, Action, SetSpeedAction, TwirlAction, PauseAction, SetHitsoundAction, PositionTrackAction } from "./types";
 import { median } from "./beat-detector";
 
 /**
@@ -136,6 +136,32 @@ function savePause(sb: string[], floor: number, action: PauseAction): void {
   if (action.duration !== null) {
     sb.push(`, "duration": ${formatDouble(action.duration)}`);
   }
+  if (action.countdownTicks !== undefined && action.countdownTicks !== 0) {
+    sb.push(`, "countdownTicks": ${action.countdownTicks}`);
+  }
+  if (action.angleCorrectionDir !== undefined && action.angleCorrectionDir !== -1) {
+    sb.push(`, "angleCorrectionDir": ${action.angleCorrectionDir}`);
+  }
+  sb.push(" },\n");
+}
+
+/**
+ * 保存 PositionTrack 动作
+ */
+function savePositionTrack(sb: string[], floor: number, action: PositionTrackAction): void {
+  sb.push(`\t\t{ "floor": ${floor}, "eventType": "${EventType.POSITION_TRACK}"`);
+  if (action.positionOffset !== null) {
+    sb.push(`, "positionOffset": [${action.positionOffset.map(v => formatDouble(v)).join(", ")}]`);
+  }
+  if (action.relativeTo !== null) {
+    sb.push(`, "relativeTo": [${action.relativeTo.map(v => typeof v === 'string' ? `"${v}"` : v).join(", ")}]`);
+  }
+  if (action.justThisTile) {
+    sb.push(`, "justThisTile": true`);
+  }
+  if (action.editorOnly) {
+    sb.push(`, "editorOnly": true`);
+  }
   sb.push(" },\n");
 }
 
@@ -192,6 +218,8 @@ function saveTileEvents(sb: string[], tileData: TileData): void {
         savePause(sb, tileData.floor, action as PauseAction);
       } else if (eventType === EventType.SET_HITSOUND) {
         saveSetHitsound(sb, tileData.floor, action as SetHitsoundAction);
+      } else if (eventType === EventType.POSITION_TRACK) {
+        savePositionTrack(sb, tileData.floor, action as PositionTrackAction);
       }
     }
   }
@@ -713,4 +741,204 @@ export function convertFullSample(
   }
 
   return { tileDataList, mapSetting };
+}
+
+/**
+ * 大圈圈模式转换器 (Big Circle Mode)
+ * 基于 Python 版本的 BigCircleConverter 移植
+ * 
+ * 核心原理：
+ * - 每个音符根据其频率和持续时间生成N块瓷砖形成一个圆弧
+ * - 使用 Twirl 在 floor 0 使全局逆时针旋转
+ * - 使用 PositionTrack 调整轨道位置
+ * - BPM公式: BPM = f × 60 × (1 + 2/N)
+ */
+
+const A4_FREQUENCY = 440.0;
+
+/**
+ * 过滤同一时刻的音符，只保留最高音
+ */
+function filterUniqueNotes(notes: [number, number][]): [number, number][] {
+  const uniqueNotes: [number, number][] = [];
+  for (const [t, p] of notes) {
+    if (uniqueNotes.length === 0) {
+      uniqueNotes.push([t, p]);
+    } else {
+      const lastNote = uniqueNotes[uniqueNotes.length - 1];
+      if (t - lastNote[0] < 0.001) {
+        if (p > lastNote[1]) {
+          uniqueNotes[uniqueNotes.length - 1] = [t, p];
+        }
+      } else {
+        uniqueNotes.push([t, p]);
+      }
+    }
+  }
+  return uniqueNotes;
+}
+
+/**
+ * 大圈圈模式单轨转换
+ */
+export function convertBigCircleTrack(
+  notes: [number, number][],
+  trackName: string = ""
+): { tileDataList: TileData[]; mapSetting: MapSetting; offset: number } | null {
+  if (notes.length === 0) {
+    return null;
+  }
+
+  // 单音过滤
+  const uniqueNotes = filterUniqueNotes(notes);
+  
+  if (uniqueNotes.length === 0) {
+    return null;
+  }
+
+  const mapSetting = createDefaultMapSetting();
+  mapSetting.author = `apofaiautomaker (Big Circle Mode)`;
+  mapSetting.levelDesc = "Big Circle Mode";
+  
+  const tileDataList: TileData[] = [];
+  
+  // 添加起始瓷砖 (floor 0, 角度 = 0)
+  const startTile = createTileData(0, 0);
+  tileDataList.push(startTile);
+  
+  // 在 floor 0 添加 Twirl 使全局逆时针旋转
+  const twirlActionList = getActionList(startTile, EventType.TWIRL);
+  twirlActionList.push({
+    eventType: EventType.TWIRL,
+  } as TwirlAction);
+
+  const offsetMs = Math.floor(uniqueNotes[0][0] * 1000);
+  let actualTime = uniqueNotes[0][0];
+  let prevR = 1.0;
+  
+  const angleData = [0];
+  let floor = 0;
+  
+  for (let idx = 0; idx < uniqueNotes.length; idx++) {
+    const [startTime, pitch] = uniqueNotes[idx];
+    
+    let targetNextTime: number;
+    if (idx < uniqueNotes.length - 1) {
+      targetNextTime = uniqueNotes[idx + 1][0];
+    } else {
+      targetNextTime = actualTime + 1.0;
+    }
+    
+    // 计算频率
+    const f = A4_FREQUENCY * Math.pow(2, (pitch - 69) / 12);
+    
+    let waitTime = startTime - actualTime;
+    if (waitTime < 0) waitTime = 0;
+    
+    let dAvail = targetNextTime - (actualTime + waitTime);
+    if (dAvail <= 0) dAvail = 0.001;
+    
+    const n = Math.max(1, Math.floor(dAvail * f + 1e-6));
+    
+    // 逆时针锁外轨公式：BPM = f * 60 * (1 + 2/N)
+    const bpm = f * 60.0 * (1.0 + 2.0 / n);
+    
+    // 获取当前瓷砖
+    const currentTile = tileDataList[floor];
+    
+    // 添加 SetSpeed 事件
+    const speedActionList = getActionList(currentTile, EventType.SET_SPEED);
+    speedActionList.push({
+      eventType: EventType.SET_SPEED,
+      speedType: "Bpm",
+      beatsPerMinute: Math.round(bpm * 1e10) / 1e10,
+      bpmMultiplier: 1.0,
+    } as SetSpeedAction);
+    
+    // 添加 Pause 事件
+    if (waitTime > 1e-5) {
+      const pauseBeats = waitTime * (bpm / 60.0);
+      const pauseActionList = getActionList(currentTile, EventType.PAUSE);
+      pauseActionList.push({
+        eventType: EventType.PAUSE,
+        duration: Math.round(pauseBeats * 1e10) / 1e10,
+        countdownTicks: 0,
+        angleCorrectionDir: -1,
+      } as PauseAction);
+    }
+    
+    // 添加 PositionTrack 事件
+    if (idx > 0) {
+      const posTile = createTileData(floor + 1, 0);
+      const posActionList = getActionList(posTile, EventType.POSITION_TRACK);
+      posActionList.push({
+        eventType: EventType.POSITION_TRACK,
+        positionOffset: [Math.round(prevR * 1000) / 1000, 0],
+        relativeTo: [0, "ThisTile"],
+        justThisTile: false,
+        editorOnly: false,
+      } as PositionTrackAction);
+      tileDataList.push(posTile);
+      floor++;
+      angleData.push(0); // 占位
+    }
+    
+    // 计算当前 R 值
+    let currentR = 1.0;
+    if (n > 1) {
+      currentR = 1.0 / (2.0 * Math.sin(Math.PI / n));
+    }
+    prevR = currentR;
+    
+    // 生成圆弧瓷砖
+    const deltaAngle = 360.0 / n;
+    for (let j = 0; j < n; j++) {
+      const prevAngle = angleData[angleData.length - 1];
+      const newAngle = (prevAngle + deltaAngle) % 360;
+      angleData.push(Math.round(newAngle * 1e10) / 1e10);
+      floor++;
+      
+      const arcTile = createTileData(floor, Math.round(newAngle * 1e10) / 1e10);
+      tileDataList.push(arcTile);
+    }
+    
+    actualTime = actualTime + waitTime + (n / f);
+  }
+
+  return { tileDataList, mapSetting, offset: offsetMs };
+}
+
+/**
+ * 大圈圈模式多轨道转换
+ * 每个轨道生成独立的谱面数据
+ */
+export function convertBigCircle(
+  tracksNotes: [number, number][][],
+  disabledTracks: boolean[],
+  baseFileName: string
+): { results: { trackIndex: number; json: string; fileName: string; tileCount: number; offset: number }[] } {
+  const results: { trackIndex: number; json: string; fileName: string; tileCount: number; offset: number }[] = [];
+  
+  for (let i = 0; i < tracksNotes.length; i++) {
+    if (disabledTracks[i]) continue;
+    
+    const notes = tracksNotes[i];
+    if (notes.length === 0) continue;
+    
+    const result = convertBigCircleTrack(notes, String(i));
+    if (result === null) continue;
+    
+    const json = generateMapJson(result.tileDataList, result.mapSetting, true);
+    const fileName = `${baseFileName}_Track${i}.adofai`;
+    
+    results.push({
+      trackIndex: i,
+      json,
+      fileName,
+      tileCount: result.tileDataList.length,
+      offset: result.offset,
+    });
+  }
+  
+  return { results };
 }

@@ -27,6 +27,7 @@ import {
   Sliders,
   Compass,
   Info,
+  Circle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -55,7 +56,7 @@ import {
 } from "@/components/ui/accordion";
 import { useI18n } from "@/lib/i18n";
 import { useConverterStore } from "@/lib/store";
-import { MidiParser, getTrackInfo } from "@/lib/core/midi-parser";
+import { MidiParser, getTrackInfo, extractAllTrackNotes } from "@/lib/core/midi-parser";
 import { AudioProcessor, FullSampleProcessor } from "@/lib/core/audio-processor";
 import { BeatDetector, median } from "@/lib/core/beat-detector";
 import {
@@ -65,6 +66,7 @@ import {
   convertAudioZipper,
   convertFullSample,
   generateMapJson,
+  convertBigCircle,
 } from "@/lib/core/map-data";
 import { useToast } from "@/hooks/use-toast";
 
@@ -121,6 +123,7 @@ export default function Home() {
     resultJson,
     resultFileName,
     stats,
+    bigCircleResults,
     error,
     setFile,
     setInputSource,
@@ -136,6 +139,7 @@ export default function Home() {
     setUseFloatVolume,
     setProcessing,
     setResult,
+    setBigCircleResults,
     setError,
     reset,
   } = useConverterStore();
@@ -236,6 +240,22 @@ export default function Home() {
         const midiFile = parser.parse(arrayBuffer);
 
         setProcessing(true, t("convert.parsingMidi"), 40);
+
+        // 大圈圈模式单独处理
+        if (convertMode === "bigcircle") {
+          setProcessing(true, t("convert.bigcircleProcessing"), 50);
+
+          const allTracksNotes = extractAllTrackNotes(midiFile);
+          const disabledTracks = trackInfo.map((t) => !t.enabled);
+          const baseFileName = file.name.replace(/\.(mid|midi)$/i, "");
+
+          const { results } = convertBigCircle(allTracksNotes, disabledTracks, baseFileName);
+
+          setProcessing(true, t("convert.generatingLevel"), 90);
+
+          setBigCircleResults(results);
+          return;
+        }
 
         const disabled = trackInfo.map((t) => !t.enabled);
         const melodyList = parser.parseToMelodyList(midiFile, disabled);
@@ -585,8 +605,8 @@ export default function Home() {
                 <CardContent>
                   <RadioGroup
                     value={convertMode}
-                    onValueChange={(v) => setConvertMode(v as "angle" | "zipper" | "fullsample")}
-                    className={`grid gap-4 ${inputSource === "audio" ? "grid-cols-3" : "grid-cols-2"}`}
+                    onValueChange={(v) => setConvertMode(v as "angle" | "zipper" | "fullsample" | "bigcircle")}
+                    className={`grid gap-4 ${inputSource === "audio" ? "grid-cols-3" : "grid-cols-3"}`}
                   >
                     <Label
                       htmlFor="angle"
@@ -623,6 +643,26 @@ export default function Home() {
                         <p className="text-white/60 text-xs mt-1">{t("mode.zipperDesc")}</p>
                       </div>
                     </Label>
+
+                    {inputSource === "midi" && (
+                      <Label
+                        htmlFor="bigcircle"
+                        className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                          convertMode === "bigcircle"
+                            ? "border-purple-500 bg-purple-500/20"
+                            : "border-white/20 hover:border-white/40"
+                        }`}
+                      >
+                        <RadioGroupItem value="bigcircle" id="bigcircle" className="sr-only" />
+                        <div className="p-2 bg-gradient-to-br from-green-500 to-teal-500 rounded-lg">
+                          <Circle className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-white font-medium">{t("mode.bigcircle")}</p>
+                          <p className="text-white/60 text-xs mt-1">{t("mode.bigcircleDesc")}</p>
+                        </div>
+                      </Label>
+                    )}
 
                     {inputSource === "audio" && (
                       <Label
@@ -953,7 +993,7 @@ export default function Home() {
                         {t("convert.title")}
                         <ArrowRight className="w-5 h-5 ml-2" />
                       </Button>
-                      {(resultJson || error) && (
+                      {(resultJson || error || bigCircleResults) && (
                         <Button
                           onClick={handleReset}
                           variant="outline"
@@ -1075,6 +1115,94 @@ export default function Home() {
                         <Download className="w-5 h-5 mr-2" />
                         {t("convert.download")}
                       </Button>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Big Circle Results */}
+            <AnimatePresence>
+              {bigCircleResults && bigCircleResults.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="space-y-6"
+                >
+                  {/* Success Card */}
+                  <Card className="bg-green-500/10 border-green-500/30 backdrop-blur-sm">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <CheckCircle2 className="w-6 h-6 text-green-400" />
+                        <span className="text-green-200 text-lg font-medium">
+                          {t("convert.bigcircleResults", { count: bigCircleResults.length })}
+                        </span>
+                      </div>
+
+                      {/* Download All Button */}
+                      <Button
+                        onClick={() => {
+                          bigCircleResults.forEach((result) => {
+                            const blob = new Blob([result.json], { type: "application/octet-stream;charset=utf-8" });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = result.fileName;
+                            a.style.display = 'none';
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                          });
+                        }}
+                        className="w-full h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 mb-4"
+                        size="lg"
+                      >
+                        <Download className="w-5 h-5 mr-2" />
+                        {t("convert.downloadAll")}
+                      </Button>
+
+                      {/* Individual Files List */}
+                      <ScrollArea className="h-64 rounded-lg bg-black/20 p-2">
+                        <div className="space-y-2">
+                          {bigCircleResults.map((result, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                            >
+                              <div className="flex items-center gap-3">
+                                <Circle className="w-4 h-4 text-teal-400" />
+                                <div>
+                                  <p className="text-white font-medium">{result.fileName}</p>
+                                  <p className="text-white/60 text-sm">
+                                    {t("stats.tileCount")}: {result.tileCount} | Offset: {result.offset}ms
+                                  </p>
+                                </div>
+                              </div>
+                              <Button
+                                onClick={() => {
+                                  const blob = new Blob([result.json], { type: "application/octet-stream;charset=utf-8" });
+                                  const url = URL.createObjectURL(blob);
+                                  const a = document.createElement("a");
+                                  a.href = url;
+                                  a.download = result.fileName;
+                                  a.style.display = 'none';
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  document.body.removeChild(a);
+                                  URL.revokeObjectURL(url);
+                                }}
+                                variant="outline"
+                                size="sm"
+                                className="border-teal-400/50 text-teal-300 hover:bg-teal-500/20 hover:text-white"
+                              >
+                                <Download className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
                     </CardContent>
                   </Card>
                 </motion.div>

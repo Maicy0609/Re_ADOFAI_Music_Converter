@@ -28,7 +28,9 @@
     "zipper": "Zipper Angle Mode",
     "zipperDesc": "Fixed angle with dynamic BPM (angleData + SetSpeed)",
     "fullsample": "Full Sample Mode",
-    "fullsampleDesc": "Straight track, plays audio via hitsounds (WAV only)"
+    "fullsampleDesc": "Straight track, plays audio via hitsounds (WAV only)",
+    "bigcircle": "Big Circle Mode",
+    "bigcircleDesc": "Generates arc-shaped track for each note, each MIDI track outputs a separate file"
   },
   "params": {
     "title": "Parameters",
@@ -84,7 +86,13 @@
     "levelBpm": "Level BPM: {bpm} (sample rate × 60)",
     "estimatedTiles": "Estimated tiles: {count}",
     "volumeRange": "Volume range: {min} - {max}",
-    "progress": "Progress: {percent}%"
+    "progress": "Progress: {percent}%",
+    "bigcircleProcessing": "Processing Big Circle Mode...",
+    "bigcircleTrackProcess": "Processing track {idx}...",
+    "bigcircleTrackSkip": "Track {idx}: Disabled, skipping",
+    "bigcircleTrackEmpty": "Track {idx}: No notes, skipping",
+    "bigcircleResults": "Generated {count} level files",
+    "downloadAll": "Download All"
   },
   "stats": {
     "title": "Statistics",
@@ -105,7 +113,8 @@
     "bpmPositive": "BPM must be greater than 0",
     "processingFailed": "Processing failed",
     "sampleRateInvalid": "Sample rate must be between 1 and 48000 Hz",
-    "audioLoadFailed": "Failed to load audio file"
+    "audioLoadFailed": "Failed to load audio file",
+    "bigcircleMidiOnly": "Big Circle Mode only supports MIDI files"
   },
   "footer": {
     "credits": "Based on Python version by Maicy0609",

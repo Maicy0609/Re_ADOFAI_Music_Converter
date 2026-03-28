@@ -28,7 +28,9 @@
     "zipper": "拉链夹角模式",
     "zipperDesc": "固定角度，动态 BPM (angleData + SetSpeed)",
     "fullsample": "全采音模式",
-    "fullsampleDesc": "直线轨道，打击音播放音频（仅支持 WAV）"
+    "fullsampleDesc": "直线轨道，打击音播放音频（仅支持 WAV）",
+    "bigcircle": "大圈圈模式",
+    "bigcircleDesc": "为每个音符生成圆弧形状的轨道，每个MIDI轨道单独输出文件"
   },
   "params": {
     "title": "参数设置",
@@ -84,7 +86,13 @@
     "levelBpm": "谱面 BPM：{bpm} (采样率 × 60)",
     "estimatedTiles": "预计瓷砖数量：{count}",
     "volumeRange": "音量范围：{min} - {max}",
-    "progress": "生成谱面进度：{percent}%"
+    "progress": "生成谱面进度：{percent}%",
+    "bigcircleProcessing": "正在处理大圈圈模式...",
+    "bigcircleTrackProcess": "正在处理轨道 {idx}...",
+    "bigcircleTrackSkip": "轨道 {idx}: 已禁用，跳过",
+    "bigcircleTrackEmpty": "轨道 {idx}: 无音符，跳过",
+    "bigcircleResults": "共生成 {count} 个谱面文件",
+    "downloadAll": "下载全部"
   },
   "stats": {
     "title": "统计信息",
@@ -105,7 +113,8 @@
     "bpmPositive": "BPM 必须大于 0",
     "processingFailed": "处理失败",
     "sampleRateInvalid": "采样率必须在 1 到 48000 Hz 之间",
-    "audioLoadFailed": "音频文件加载失败"
+    "audioLoadFailed": "音频文件加载失败",
+    "bigcircleMidiOnly": "大圈圈模式仅支持MIDI文件"
   },
   "footer": {
     "credits": "基于 Maicy0609 的 Python 版本",
