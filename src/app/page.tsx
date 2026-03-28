@@ -466,6 +466,101 @@ export default function Home() {
     }
   };
 
+  // Big Circle Mode 单文件下载（优先使用流式写入 API）
+  const handleBigCircleDownload = async (result: { json: string; fileName: string }) => {
+    // 尝试使用 File System Access API
+    if ('showSaveFilePicker' in window) {
+      try {
+        const handle = await (window as Window & { showSaveFilePicker: (options: unknown) => Promise<FileSystemFileHandle> }).showSaveFilePicker({
+          suggestedName: result.fileName,
+          types: [
+            {
+              description: 'ADOFAI Level File',
+              accept: { 'application/json': ['.adofai'] },
+            },
+          ],
+          defaultExtension: 'adofai',
+        });
+        const writable = await handle.createWritable();
+        await writable.write(result.json);
+        await writable.close();
+        return;
+      } catch (err) {
+        // 用户取消或出错，回退到传统下载方式
+        if ((err as Error).name === 'AbortError') return;
+        console.warn('File System Access API failed, falling back to download:', err);
+      }
+    }
+
+    // 传统下载方式
+    const blob = new Blob([result.json], { type: "application/octet-stream;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = result.fileName;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Big Circle Mode 批量下载（优先使用流式写入 API）
+  const handleBigCircleDownloadAll = async () => {
+    if (!bigCircleResults || bigCircleResults.length === 0) return;
+
+    // 尝试使用 File System Access API 逐个保存
+    if ('showSaveFilePicker' in window) {
+      for (const result of bigCircleResults) {
+        try {
+          const handle = await (window as Window & { showSaveFilePicker: (options: unknown) => Promise<FileSystemFileHandle> }).showSaveFilePicker({
+            suggestedName: result.fileName,
+            types: [
+              {
+                description: 'ADOFAI Level File',
+                accept: { 'application/json': ['.adofai'] },
+              },
+            ],
+            defaultExtension: 'adofai',
+          });
+          const writable = await handle.createWritable();
+          await writable.write(result.json);
+          await writable.close();
+        } catch (err) {
+          // 用户取消则停止后续保存
+          if ((err as Error).name === 'AbortError') return;
+          console.warn('File System Access API failed for', result.fileName, ':', err);
+          // 出错时回退到传统方式下载该文件
+          const blob = new Blob([result.json], { type: "application/octet-stream;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = result.fileName;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+      }
+      return;
+    }
+
+    // 传统下载方式：批量下载所有文件
+    bigCircleResults.forEach((result) => {
+      const blob = new Blob([result.json], { type: "application/octet-stream;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = result.fileName;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Header */}
@@ -1142,20 +1237,7 @@ export default function Home() {
 
                       {/* Download All Button */}
                       <Button
-                        onClick={() => {
-                          bigCircleResults.forEach((result) => {
-                            const blob = new Blob([result.json], { type: "application/octet-stream;charset=utf-8" });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = result.fileName;
-                            a.style.display = 'none';
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(url);
-                          });
-                        }}
+                        onClick={handleBigCircleDownloadAll}
                         className="w-full h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 mb-4"
                         size="lg"
                       >
@@ -1181,18 +1263,7 @@ export default function Home() {
                                 </div>
                               </div>
                               <Button
-                                onClick={() => {
-                                  const blob = new Blob([result.json], { type: "application/octet-stream;charset=utf-8" });
-                                  const url = URL.createObjectURL(blob);
-                                  const a = document.createElement("a");
-                                  a.href = url;
-                                  a.download = result.fileName;
-                                  a.style.display = 'none';
-                                  document.body.appendChild(a);
-                                  a.click();
-                                  document.body.removeChild(a);
-                                  URL.revokeObjectURL(url);
-                                }}
+                                onClick={() => handleBigCircleDownload(result)}
                                 variant="outline"
                                 size="sm"
                                 className="border-teal-400/50 text-teal-300 hover:bg-teal-500/20 hover:text-white"
